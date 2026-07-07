@@ -449,3 +449,245 @@ using (bucket_id = 'fault-photos' and (public.is_manager() or (storage.foldernam
 drop policy if exists "Fault photos are public" on storage.objects;
 create policy "Fault photos are public"
 on storage.objects for select to public using (bucket_id = 'fault-photos');
+
+-- ===========================================================================
+-- v3 — Kayit istekleri (self-servis kayit + onay), vardiya gorselleri,
+-- yetki genislemesi (takim lideri = yetkili). Bu bolum idempotenttir ve
+-- gerekli fonksiyon/policy tanimlarini gunceller (en son tanim gecerlidir).
+-- ===========================================================================
+
+-- Kayit durumu enum'u: pending (onay bekliyor), approved (onaylandi), rejected (reddedildi)
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'registration_status') then
+    create type public.registration_status as enum ('pending', 'approved', 'rejected');
+  end if;
+end$$;
+
+-- Yeni kolonlar (mevcut satirlar 'approved' sayilir; yeni kayitlar trigger ile 'pending' olur)
+alter table public.profiles add column if not exists registration_status public.registration_status not null default 'approved';
+alter table public.shifts add column if not exists photo_url text;
+
+create index if not exists profiles_registration_status_idx on public.profiles(registration_status);
+
+-- Haftalik vardiya plani gorselleri (Excel ciktisi/foto). Herkes gorur, yetkili yonetir.
+create table if not exists public.shift_boards (
+  id uuid primary key default gen_random_uuid(),
+  title text,
+  week_start date,
+  image_url text not null,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists shift_boards_created_at_idx on public.shift_boards(created_at desc);
+
+-- Departmanlar: giris ekranindaki kayit formu icin anonim okuma da gerekir.
+drop policy if exists "Authenticated users can read departments" on public.departments;
+drop policy if exists "Anyone can read departments" on public.departments;
+create policy "Anyone can read departments"
+on public.departments for select to anon, authenticated using (true);
+
+-- Self-servis kayit: yeni Auth kullanicisi PASIF ve 'pending' olarak acilir; yetkili onaylar.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  dept_raw text := nullif(new.raw_user_meta_data->>'department_id', '');
+  dept_id uuid := null;
+begin
+  if dept_raw is not null and dept_raw ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    dept_id := dept_raw::uuid;
+  end if;
+
+  insert into public.profiles (id, full_name, role, phone, department_id, is_active, registration_status)
+  values (
+    new.id,
+    coalesce(nullif(new.raw_user_meta_data->>'full_name', ''), split_part(new.email, '@', 1)),
+    'staff',
+    nullif(new.raw_user_meta_data->>'phone', ''),
+    dept_id,
+    false,
+    'pending'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+-- Yetki koruma (guncellendi):
+--   * admin: her seyi degistirebilir
+--   * team_leader (yetkili): baska personelin rol/departman/aktifligini yonetir,
+--     ANCAK kendini yukseltemez, admin'lere dokunamaz ve kimseyi admin yapamaz
+--   * digerleri: ayricalikli alanlar sabit
+-- Onay RPC'leri gecici bir oturum bayragi ile bu guard'i atlar.
+create or replace function public.guard_profile_privileges()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor public.user_role := public.current_user_role();
+begin
+  if current_setting('app.bypass_profile_guard', true) = '1' then
+    return new;
+  end if;
+
+  if actor = 'admin' then
+    return new;
+  end if;
+
+  if actor = 'team_leader' then
+    -- Kendi ayricalikli alanlarini degistiremez.
+    if new.id = auth.uid() then
+      new.role := old.role;
+      new.is_active := old.is_active;
+      new.department_id := old.department_id;
+      return new;
+    end if;
+    -- Mevcut bir admin'in ayricalikli alanlarina dokunamaz.
+    if old.role = 'admin' then
+      new.role := old.role;
+      new.is_active := old.is_active;
+      new.department_id := old.department_id;
+      return new;
+    end if;
+    -- Kimseyi admin yapamaz.
+    if new.role = 'admin' then
+      new.role := old.role;
+    end if;
+    return new;
+  end if;
+
+  new.role := old.role;
+  new.is_active := old.is_active;
+  new.department_id := old.department_id;
+  return new;
+end;
+$$;
+
+-- Kayit onaylama (yetkili = admin veya takim lideri).
+create or replace function public.approve_registration(
+  target uuid,
+  new_role public.user_role default 'staff',
+  dept uuid default null,
+  new_title text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_manager() then
+    raise exception 'Bu islem icin yetkiniz yok.';
+  end if;
+  if new_role = 'admin' and not public.is_admin() then
+    raise exception 'Admin yetkisini yalnizca admin atayabilir.';
+  end if;
+
+  perform set_config('app.bypass_profile_guard', '1', true);
+  update public.profiles
+     set is_active = true,
+         registration_status = 'approved',
+         role = coalesce(new_role, role),
+         department_id = coalesce(dept, department_id),
+         title = coalesce(nullif(new_title, ''), title)
+   where id = target;
+end;
+$$;
+
+-- Kayit reddetme.
+create or replace function public.reject_registration(target uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_manager() then
+    raise exception 'Bu islem icin yetkiniz yok.';
+  end if;
+
+  perform set_config('app.bypass_profile_guard', '1', true);
+  update public.profiles
+     set is_active = false,
+         registration_status = 'rejected'
+   where id = target;
+end;
+$$;
+
+grant execute on function public.approve_registration(uuid, public.user_role, uuid, text) to authenticated;
+grant execute on function public.reject_registration(uuid) to authenticated;
+
+-- Profiles okuma: yetkililer pasif/pending profilleri de gorebilir (kayit istekleri icin).
+drop policy if exists "Users can read active profiles" on public.profiles;
+create policy "Users can read active profiles"
+on public.profiles for select to authenticated
+using (is_active = true or public.is_manager() or id = auth.uid());
+
+-- Profiles guncelleme: yetkililer yonetebilir (ayricalik yukseltme guard ile korunur).
+drop policy if exists "Admins can update profiles" on public.profiles;
+drop policy if exists "Managers can update profiles" on public.profiles;
+create policy "Managers can update profiles"
+on public.profiles for update to authenticated
+using (public.is_manager()) with check (public.is_manager());
+
+-- Departmanlar: yetkililer yonetebilir.
+drop policy if exists "Admins can manage departments" on public.departments;
+drop policy if exists "Managers can manage departments" on public.departments;
+create policy "Managers can manage departments"
+on public.departments for all to authenticated
+using (public.is_manager()) with check (public.is_manager());
+
+-- Vardiyalar: yetkililer tum vardiyalari gorur ve yonetir; personel kendi vardiyasini gorur.
+drop policy if exists "Admins can read all shifts and users own shifts" on public.shifts;
+drop policy if exists "Managers can read all shifts and users own shifts" on public.shifts;
+create policy "Managers can read all shifts and users own shifts"
+on public.shifts for select to authenticated
+using (public.is_manager() or profile_id = auth.uid());
+
+drop policy if exists "Admins can manage shifts" on public.shifts;
+drop policy if exists "Managers can manage shifts" on public.shifts;
+create policy "Managers can manage shifts"
+on public.shifts for all to authenticated
+using (public.is_manager()) with check (public.is_manager());
+
+-- Vardiya gorselleri: herkes okur, yetkili yonetir.
+alter table public.shift_boards enable row level security;
+
+drop policy if exists "Authenticated can read shift boards" on public.shift_boards;
+create policy "Authenticated can read shift boards"
+on public.shift_boards for select to authenticated using (true);
+
+drop policy if exists "Managers can manage shift boards" on public.shift_boards;
+create policy "Managers can manage shift boards"
+on public.shift_boards for all to authenticated
+using (public.is_manager())
+with check (public.is_manager() and (created_by is null or created_by = auth.uid()));
+
+-- Vardiya foto/gorsel deposu (vardiya karti fotolari ve haftalik plan gorselleri).
+insert into storage.buckets (id, name, public)
+values ('shift-photos', 'shift-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Managers can upload shift photos" on storage.objects;
+create policy "Managers can upload shift photos"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'shift-photos'
+  and public.is_manager()
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Managers can delete shift photos" on storage.objects;
+create policy "Managers can delete shift photos"
+on storage.objects for delete to authenticated
+using (bucket_id = 'shift-photos' and public.is_manager());
+
+drop policy if exists "Shift photos are public" on storage.objects;
+create policy "Shift photos are public"
+on storage.objects for select to public using (bucket_id = 'shift-photos');
