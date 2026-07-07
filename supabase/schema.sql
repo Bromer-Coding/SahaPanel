@@ -590,13 +590,15 @@ begin
   end if;
 
   perform set_config('app.bypass_profile_guard', '1', true);
+  -- Yalnizca gercekten onay bekleyen (pending) kayitlara dokun; boylece bu RPC
+  -- mevcut bir admin'i veya onaylanmis bir kullaniciyi degistiremez.
   update public.profiles
      set is_active = true,
          registration_status = 'approved',
          role = coalesce(new_role, role),
          department_id = coalesce(dept, department_id),
          title = coalesce(nullif(new_title, ''), title)
-   where id = target;
+   where id = target and registration_status = 'pending';
 end;
 $$;
 
@@ -613,10 +615,12 @@ begin
   end if;
 
   perform set_config('app.bypass_profile_guard', '1', true);
+  -- Yalnizca onay bekleyen (pending) kayitlar reddedilebilir; onaylanmis
+  -- kullanicilar (ozellikle admin) bu RPC ile pasiflestirilemez.
   update public.profiles
      set is_active = false,
          registration_status = 'rejected'
-   where id = target;
+   where id = target and registration_status = 'pending';
 end;
 $$;
 
