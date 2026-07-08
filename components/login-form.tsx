@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 import { pingPresence } from "@/app/actions";
-import { Field, buttonClass, inputClass, labelClass } from "@/components/ui";
+import { Field, buttonClass, inputClass, labelClass, secondaryButtonClass } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 function Spinner() {
@@ -17,7 +17,7 @@ function Spinner() {
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ onBack }: { onBack?: () => void }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,7 +45,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-line bg-surface p-6 shadow-card">
+    <form onSubmit={onSubmit} className="rounded-2xl border border-line bg-surface p-6 shadow-card">
       <h2 className="text-2xl font-semibold text-ink">Giriş yap</h2>
       <p className="mt-1 text-sm text-muted">Ekip hesabınızla devam edin.</p>
 
@@ -110,6 +110,13 @@ export function LoginForm() {
         {loading ? <Spinner /> : <LogIn className="h-4 w-4" aria-hidden />}
         {loading ? "Giriş yapılıyor..." : "Giriş yap"}
       </button>
+
+      {onBack ? (
+        <button type="button" onClick={onBack} className={cn(secondaryButtonClass, "mt-3 w-full")}>
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Geri Dön
+        </button>
+      ) : null}
     </form>
   );
 }

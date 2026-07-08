@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Eye, EyeOff, Lock, Mail, Phone, UserPlus, UserRound } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Mail, Phone, UserPlus, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 import { Field, buttonClass, inputClass, labelClass, secondaryButtonClass, selectClass } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -19,10 +19,12 @@ function Spinner() {
 
 export function RegisterForm({
   departments,
-  onSwitchToLogin
+  onSwitchToLogin,
+  onBack
 }: {
   departments: DepartmentOption[];
   onSwitchToLogin?: () => void;
+  onBack?: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -86,7 +88,7 @@ export function RegisterForm({
 
   if (done) {
     return (
-      <div className="rounded-xl border border-line bg-surface p-6 shadow-card text-center">
+      <div className="rounded-2xl border border-line bg-surface p-6 shadow-card text-center">
         <span className="inline-grid h-14 w-14 place-items-center rounded-full bg-brand-500/12 text-brand-700 dark:text-brand-200">
           <CheckCircle2 className="h-7 w-7" aria-hidden />
         </span>
@@ -94,7 +96,7 @@ export function RegisterForm({
         <p className="mt-2 text-sm text-muted">
           Talebiniz yetkiliye iletildi. Onaylandıktan sonra e-posta ve şifrenizle giriş yapabilirsiniz.
         </p>
-        <button type="button" onClick={onSwitchToLogin} className={cn(secondaryButtonClass, "mt-5 w-full")}>
+        <button type="button" onClick={onSwitchToLogin ?? onBack} className={cn(secondaryButtonClass, "mt-5 w-full")}>
           Giriş ekranına dön
         </button>
       </div>
@@ -102,7 +104,7 @@ export function RegisterForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-line bg-surface p-6 shadow-card">
+    <form onSubmit={onSubmit} className="rounded-2xl border border-line bg-surface p-6 shadow-card">
       <h2 className="text-2xl font-semibold text-ink">Kayıt ol</h2>
       <p className="mt-1 text-sm text-muted">Bilgilerinizi girin; yetkili onayından sonra giriş yapabilirsiniz.</p>
 
@@ -223,6 +225,13 @@ export function RegisterForm({
         {loading ? <Spinner /> : <UserPlus className="h-4 w-4" aria-hidden />}
         {loading ? "Kaydınız oluşturuluyor..." : "Kayıt ol"}
       </button>
+
+      {onBack ? (
+        <button type="button" onClick={onBack} className={cn(secondaryButtonClass, "mt-3 w-full")}>
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Geri Dön
+        </button>
+      ) : null}
     </form>
   );
 }

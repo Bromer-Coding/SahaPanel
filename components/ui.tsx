@@ -6,7 +6,7 @@ import type { Tone } from "@/lib/types";
 // Ortak sinif dizeleri (client/server her yerde kullanilabilir)
 // ---------------------------------------------------------------------------
 export const inputClass =
-  "focus-ring min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-2 transition";
+  "focus-ring min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-2 transition focus:border-brand-500";
 
 export const selectClass = cn(inputClass, "cursor-pointer");
 
@@ -15,7 +15,7 @@ export const textareaClass = cn(inputClass, "min-h-24 resize-y leading-6");
 export const labelClass = "grid gap-1.5 text-sm font-medium text-ink";
 
 export const buttonClass =
-  "focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60";
+  "focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-500 hover:shadow-md active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
 
 export const secondaryButtonClass =
   "focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60";
@@ -95,9 +95,11 @@ export function SectionTitle({
 // ---------------------------------------------------------------------------
 // Rozet
 // ---------------------------------------------------------------------------
+// Not: "green" tonu durum (basari/tamamlandi) anlamini korumak icin markadan
+// bagimsiz gercek yesildir; marka vurgusu (butonlar vb.) mat kirmizidir.
 const toneClasses: Record<Tone, string> = {
   neutral: "bg-slate-500/10 text-slate-600 dark:bg-slate-400/15 dark:text-slate-300",
-  green: "bg-brand-500/12 text-brand-700 dark:bg-brand-400/15 dark:text-brand-200",
+  green: "bg-emerald-500/12 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300",
   amber: "bg-amber-500/12 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300",
   red: "bg-signal-red/12 text-signal-red dark:bg-signal-red/20 dark:text-red-300",
   blue: "bg-signal-blue/12 text-signal-blue dark:bg-signal-blue/20 dark:text-sky-300",
@@ -106,7 +108,7 @@ const toneClasses: Record<Tone, string> = {
 
 const dotClasses: Record<Tone, string> = {
   neutral: "bg-slate-400",
-  green: "bg-brand-500",
+  green: "bg-emerald-500",
   amber: "bg-amber-500",
   red: "bg-signal-red",
   blue: "bg-signal-blue",

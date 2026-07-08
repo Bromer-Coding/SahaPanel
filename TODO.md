@@ -10,3 +10,7 @@
 
 - ~~Supabase ortam değişkenleri Vercel'de eksikti (`NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY`), `/dashboard` sayfasında 42 hata / 6 kullanıcı etkilenmişti~~ — 2026-07-08 itibarıyla env'ler eklenmiş ve sonraki deploy ile giderilmiş durumda (bkz. [CHANGELOG.md](CHANGELOG.md)).
 - ~~`profiles.is_online`/`last_seen_at` migration'ı elle SQL editöründe çalıştırılması gerekiyordu~~ — 2026-07-08'de doğrudan uygulandı.
+## 2026-07-08 - Redesign kontrolu
+
+- [ ] Yeni tasarimi production deploy sonrasinda masaustu ve mobil ekranda gorsel olarak kontrol et.
+- [ ] Login/kayit, dashboard, duyurular, kayit istekleri ve vardiya plani ekranlarinda koyu tema okunurlugunu kontrol et.

@@ -11,3 +11,9 @@ Bu dosya, projede yapılan önemli değişikliklerin kısa ve tarihli özetini t
 - **GitHub push:** Yukarıdaki değişiklikler `Bromer-Coding/SahaPanel` reposuna `claude/shifts-cleanup-online-staff-bggahc` branch'i olarak push edildi (main'e henüz merge edilmedi, bkz. [TODO.md](TODO.md)).
 - **Vercel/Supabase entegrasyon kontrolü:** Production'da 2026-07-07/08 arasında görülen "Supabase URL/Key required" hatası (42 kayıt, 6 kullanıcı, `/dashboard`) incelendi; env değişkenleri (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) zaten eklenmiş ve sonraki deploy bu hatayı gidermişti — ek aksiyon gerekmedi.
 - **Build/test durumu:** `npm run typecheck`, `npm run lint` ve `npm run build` yukarıdaki tüm değişikliklerle birlikte başarılı.
+## 2026-07-08 - Redesign paketi
+
+- `SahaPanelredesign.zip` icerigi `Bromer-Coding/SahaPanel` main dali baz alinarak projeye alindi.
+- Degisiklikler agirlikli olarak tema, global stil, login/kayit ekrani, navigasyon, ortak UI bilesenleri ve uygulama ikonlarini etkiler.
+- Supabase tablo/kolon/policy degisikligi yapilmadi.
+- `npm install` ve `npm run build` basarili gecti.

@@ -1,38 +1,60 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+import { LogIn, UserPlus } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { RegisterForm } from "@/components/register-form";
 import { cn } from "@/lib/utils";
 
 type DepartmentOption = { id: string; name: string };
 type Mode = "login" | "register";
+type View = "landing" | "login" | "register";
 
 export function AuthTabs({ departments, mode = "login" }: { departments: DepartmentOption[]; mode?: Mode }) {
-  const tab = (value: Mode, label: string) => {
-    const active = mode === value;
-    return (
-      <Link
-        href={value === "login" ? "/login" : "/login?mode=register"}
-        role="tab"
-        aria-selected={active}
-        className={cn(
-          "focus-ring flex-1 rounded-md px-3 py-2 text-center text-sm font-semibold transition",
-          active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
-        )}
-      >
-        {label}
-      </Link>
-    );
+  // Ilk ekranda yalnizca iki buton gorunur; secime gore form yumusak acilir.
+  const [view, setView] = useState<View>(mode === "register" ? "register" : "landing");
+  // Gorunum degistiginde giris animasyonunu (animate-reveal) yeniden tetiklemek icin key.
+  const [animKey, setAnimKey] = useState(0);
+
+  const go = (next: View) => {
+    setView(next);
+    setAnimKey((k) => k + 1);
   };
 
-  return (
-    <div>
-      <div role="tablist" className="mb-4 flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
-        {tab("login", "Giriş yap")}
-        {tab("register", "Kayıt ol")}
+  if (view === "landing") {
+    return (
+      <div key={animKey} className="animate-reveal grid gap-3">
+        <button
+          type="button"
+          onClick={() => go("login")}
+          className="focus-ring group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-glow active:translate-y-0"
+        >
+          <LogIn className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" aria-hidden />
+          Giriş Yap
+        </button>
+        <button
+          type="button"
+          onClick={() => go("register")}
+          className="focus-ring group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-gold-400/50 hover:bg-surface-2 active:translate-y-0"
+        >
+          <UserPlus className="h-4 w-4 text-gold-400 transition-transform group-hover:scale-110" aria-hidden />
+          Kayıt Ol
+        </button>
       </div>
-      {mode === "login" ? <LoginForm /> : <RegisterForm departments={departments} />}
+    );
+  }
+
+  return (
+    <div key={animKey} className="animate-reveal">
+      {view === "login" ? (
+        <LoginForm onBack={() => go("landing")} />
+      ) : (
+        <RegisterForm
+          departments={departments}
+          onBack={() => go("landing")}
+          onSwitchToLogin={() => go("login")}
+        />
+      )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ export type BarItem = { label: string; value: number; tone: Tone };
 // ui.tsx içindeki dotClasses desenini yerelde tekrar ediyoruz.
 const barColor: Record<Tone, string> = {
   neutral: "bg-slate-400",
-  green: "bg-brand-500",
+  green: "bg-emerald-500",
   amber: "bg-amber-500",
   red: "bg-signal-red",
   blue: "bg-signal-blue",
